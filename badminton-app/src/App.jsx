@@ -1,14 +1,14 @@
-import React, { useState, useEffect,useRef } from 'react';
-import { Layout, InputNumber, notification, Button, Typography, Alert, Row, Col } from 'antd';
-import label from "./assets/image/image.png"
-import image from "./assets/image/anh.jpeg"
+import Particles, { initParticlesEngine } from "@tsparticles/react";
+import { loadSlim } from "@tsparticles/slim";
+import React, { useState, useEffect,useRef, useMemo } from 'react';
+import { Layout, InputNumber, notification, Button, Typography, Row, Col } from 'antd';
+import usePreventScrollOnKeyboard from './usePreventScrollOnKeyboard';
+
 const { Header, Content } = Layout;
 const { Title } = Typography;
 
 const App = () => {
     const [hours, setHours] = useState(2);
-    const [hoursSetting, setHoursSetting] = useState(2);
-    const [totalYard, setTotalYard] = useState(1);
     const [pricePerHour, setPricePerHour] = useState(110000);
     const [maleCount, setMaleCount] = useState(0);
     const [femaleCount, setFemaleCount] = useState(0);
@@ -21,7 +21,10 @@ const App = () => {
     const [isSettingsVisible, setIsSettingsVisible] = useState(false);
     const maleCountRef = useRef(null);
     const shuttlecockCountRef = useRef(null);
-
+    const pricePerHourRef = useRef(null);
+    const shuttlecockPriceRef = useRef(null);
+    const [init, setInit] = useState(false);
+    usePreventScrollOnKeyboard();
 useEffect(() => {
     const savedValues = JSON.parse(localStorage.getItem('badmintonApp'));
     if (savedValues) {
@@ -29,64 +32,134 @@ useEffect(() => {
         setFemalePrice(savedValues.femalePrice || 0);
         setChildPrice(savedValues.childPrice || 0);
         setShuttlecockPrice(savedValues.shuttlecockPrice || 0);
-        setHours(savedValues.hoursSetting || 0);
+        
     }
 }, []);
 
-  useEffect(() => {
-    const savedValues = JSON.parse(localStorage.getItem('badmintonApp'));
-    setHours((savedValues?.hoursSetting || 2) * totalYard)
-}, [totalYard]);
-
 useEffect(() => {
-  getTotalHour()
-}, [childCount, femaleCount,maleCount ]);
+initParticlesEngine(async (engine) => {
+    
+    await loadSlim(engine);
+}).then(() => {
+    setInit(true);
+});
+}, []);
+
+  const particlesLoaded = (container) => {
+    console.log(container);
+  };
+  const options = useMemo(
+    () => ({
+      background: {
+        color: {
+          value: "#000",
+        },
+      },
+      fpsLimit: 120,
+      interactivity: {
+        events: {
+          onClick: {
+            enable: true,
+            mode: "push",
+          },
+          onHover: {
+            enable: true,
+            mode: "repulse",
+          },
+        },
+        modes: {
+          push: {
+            quantity: 2,
+          },
+          repulse: {
+            distance: 100,
+            duration: 0.4,
+          },
+        },
+      },
+      particles: {
+        color: {
+          value: "#ffffff",
+        },
+        links: {
+          color: "#ffffff",
+          distance: 150,
+          enable: true,
+          opacity: 0.5,
+          width: 1,
+        },
+        move: {
+          direction: "none",
+          enable: true,
+          outModes: {
+            default: "bounce",
+          },
+          random: false,
+          speed: 1,
+          straight: false,
+        },
+        number: {
+          density: {
+            enable: true,
+          },
+          value: 150,
+        },
+        opacity: {
+          value: 0.5,
+        },
+        shape: {
+          type: "circle",
+        },
+        size: {
+          value: { min: 1, max: 5 },
+        },
+      },
+      detectRetina: true,
+    }),
+    [],
+  );
 
 const calculateCost = () => {
-    
-    const totalPrice =  hours * pricePerHour;
-    if (maleCount > 0 && shuttlecockCount > 0) {
+    if(pricePerHour == 0 || shuttlecockPrice == 0){
+        showMessage('Thiết lập đủ cài đặt!')
+        return false
+    }
+   
+    if (shuttlecockCount > 0 && hours > 0) {
         const totalFemaleCost = femaleCount * (femalePrice || 0) ;
         const totalChildCost = childCount * (childPrice || 0);
         const totalShuttlecockCost = shuttlecockCount * (shuttlecockPrice || 0);
-        const totalCost = totalPrice  - (totalFemaleCost + totalChildCost);
+        const totalCost = hours * pricePerHour  - (totalFemaleCost + totalChildCost);
         const maleShare = (totalCost + totalShuttlecockCost) / maleCount;
         setResult(`Giá mỗi người: ${formatNumber(maleShare.toFixed(0))}`);
         return false
     } 
+
+    if(hours == 0) {
+        showMessage('Nhập cmn số giờ vào!')
+        return false
+    }
+
     if(maleCount == 0) {
-        notification.open({
-            message: 'Thông báo',
-            description: 'Vui lòng nhập số lượng nam!',
-            placement: 'bottomRight', 
-            duration: 2, 
-          });
-        focusMaleCount()
+        showMessage('Nhập số lượng người chơi vào!')
         return false
     }
     if(shuttlecockCount == 0){
-        notification.open({
-            message: 'Thông báo',
-            description: 'Vui lòng nhập số lượng cầu!',
-            placement: 'bottomRight', 
-            duration: 2,
-          });
-        focusShuttlecockCount()
+        showMessage('Nhập số lượng cầu vào!')
         return false
     }
 };
 
-const getTotalHour = () =>{
-    let totalPlayer = childCount + femaleCount + maleCount
-    let totalYardCalc = Math.ceil(totalPlayer / 8);
-    totalYardCalc = totalYardCalc === 0 ? 1 : totalYardCalc
-    setTotalYard(totalYardCalc)
-} 
+const showMessage = (message) => {
+    notification.open({
+        message: <span style={{color: "red"}}>Anh nhắc em:</span>,
+        description: message,
+        placement: 'top', 
+        duration: 4,
+    });
+}
 
 const resetFields = () => {
-    const savedValues = JSON.parse(localStorage.getItem('badmintonApp'));
-    setHours(savedValues?.hoursSetting || 0);
-    setTotalYard(1)
     setMaleCount(0);
     setFemaleCount(0);
     setChildCount(0);
@@ -100,9 +173,18 @@ const saveToLocalStorage = () => {
         femalePrice,
         childPrice,
         shuttlecockPrice,
-        hoursSetting
     };
     localStorage.setItem('badmintonApp', JSON.stringify(valuesToSave));
+    if(pricePerHour == 0){
+        showMessage('Nhập giá tiền vào!')
+        return false
+    }
+   
+    if(shuttlecockPrice == 0){
+        showMessage('Nhập giá cầu vào!')
+        return false
+    }
+
     setIsSettingsVisible(false)
     resetFields()
 };
@@ -110,118 +192,142 @@ const saveToLocalStorage = () => {
 const formatNumber = (number) =>{
     return  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(number);
 }
-const focusMaleCount = () => {
-    maleCountRef.current.focus();
-  };
 
-  const focusShuttlecockCount = () => {
-    shuttlecockCountRef.current.focus();
-  };
 return (
-    <Layout style={{ width: '100vw',height: '100vh', display: "flex", justifyContent: "center", alignItems:"center"}} >
-        <div  style={{ width: "100%", border: "1px solid #ccc", borderRadius: "5px", height: "100%", backgroundColor: "#ffff", overflow:"hidden", zIndex: 2 }}>
-        <Header style={{ display: 'flex', justifyContent: 'center', alignItems: 'center'}} >
-            <Title style={{ color: 'white', fontSize: "20px" }}>Badminton KKD Cost</Title>
+    <Layout  style={{backgroundColor: "transparent", overflow: "hidden"}} >
+         <Header style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position:"fixed", top: 0, zIndex: 3, width: "100%"}} >
+            <span style={{ color: 'white', fontSize: "20px" }}>Badminton KKD Cost</span>
         </Header>
-        <Content style={{ padding: '20px' }}>
+        <div  style={{ overflowY:"auto", zIndex: 2, overflowX:"hidden", backgroundColor: "transparent" }}>
+       
+           {
+            init && <Particles
+            style={{zIndex: -1}}
+             id="tsparticles"
+             particlesLoaded={particlesLoaded}
+             options={options}
+           />
+           }
+       
+        <Content style={{ padding: '20px'}}>
                 
             {
-                !isSettingsVisible && 
-                <Button onClick={()=>setIsSettingsVisible(true)} type="primary" >Cài đặt</Button>
+                !isSettingsVisible && <div style={{display: "flex", justifyItems:"space-between", alignItems: "center", width: "100%"}}>
+                 <div><Button onClick={()=>setIsSettingsVisible(true)} type="primary" >Cài đặt</Button></div>
+                 <div style={{color: "red", marginLeft: "10px", fontSize: "20px", fontWeight:"bold", position: "relative"}} className="thodo">{result}</div>
+                </div>
+              
             }
              
             { isSettingsVisible ?<div>
          
-            <Row >
-                <Col span={24}>
+            <Row gutter={16}>
+                <Col span={12}>
                     <div>
-                        <Title level={5}>Giá tiền 1 giờ:</Title>
-                        <InputNumber min={0} value={pricePerHour} onChange={setPricePerHour} 
+                        <Title style={{ color: 'white' }} level={5}>Giá tiền 1 giờ:</Title>
+                        <InputNumber
+                            min={0} 
+                            value={pricePerHour}
+                            onChange={setPricePerHour} 
+                            ref={pricePerHourRef}
                             style={{ width: '100%' }} />
                     </div>
                     <div >
-                        <Title level={5}>Giá 1 quả cầu:</Title>
-                        <InputNumber min={0} value={shuttlecockPrice} onChange={setShuttlecockPrice} 
-                            style={{ width: '100%' }} />
+                        <Title level={5} style={{ color: 'white' }}>Giá 1 quả cầu:</Title>
+                        <InputNumber
+                            min={0}
+                            value={shuttlecockPrice} 
+                            onChange={setShuttlecockPrice} 
+                            style={{ width: '100%' }}
+                            ref={shuttlecockPriceRef}
+                            />
                     </div>
-                    <div>
-                        <Title level={5}>Số giờ 1 sân:</Title>
-                        <InputNumber min={0} value={hoursSetting} onChange={setHoursSetting} style={{ width: '100%' }} />
-                    </div>
+                    </Col>
+                    <Col span={12}>
                     <div >
-                        <Title level={5}>Giá nữ:</Title>
-                        <InputNumber min={0} value={femalePrice} onChange={setFemalePrice} style={{ width: '100%' }} />
+                        <Title level={5} style={{ color: 'white' }}>Giá nữ:</Title>
+                        <InputNumber 
+                            min={0} 
+                            value={femalePrice} 
+                            onChange={setFemalePrice} 
+                            style={{ width: '100%' }} 
+                        />
                     </div>
+                    
                     <div>
-                        <Title level={5}>Giá trẻ em:</Title>
-                        <InputNumber min={0} value={childPrice} onChange={setChildPrice} style={{ width: '100%' }} />
+                        <Title level={5} style={{ color: 'white' }}>Giá trẻ em:</Title>
+                        <InputNumber 
+                            min={0} 
+                            value={childPrice} 
+                            onChange={setChildPrice} 
+                            style={{ width: '100%' }} 
+                        />
                     </div>
-                </Col>
-                <Row>{
-                        isSettingsVisible && <div style={{ marginTop: 10 }} >
+                    {
+                        isSettingsVisible && <div style={{ marginTop: 50 }} >
                         <Button onClick={() => setIsSettingsVisible(false)} type="primary" >  Quay lại </Button>
                         <Button onClick={saveToLocalStorage} type="primary" style={{ marginLeft: 8 }} >  Lưu </Button>
                         </div> 
                         
-                    }</Row>
+                    }
+                </Col>
+                <Row></Row>
             </Row>
             </div> :
             <div>
-            <Row>
-                <Col span={24}>
+            <Row gutter={16}>
+                <Col span={12}>
                     <div>
-                        <Title level={5}>{`Số giờ ${totalYard} sân:`}</Title>
-                        <InputNumber min={1} value={hours}
-                            style={{ width: '100%' }} />
-                    </div>
-                    <div>
-                        <Title level={5}>Giá tiền 1 giờ:</Title>
-                        <InputNumber min={0} value={pricePerHour} onChange={setPricePerHour} 
-                            style={{ width: '100%' }}
-                            disabled={!isSettingsVisible}
-                            />
+                        <Title level={5} style={{ color: 'white' }}>Số giờ:</Title>
+                        <InputNumber min={0} value={hours} onChange={setHours} style={{ width: '100%' }} />
                     </div>
                     <div >
-                        <Title level={5}>Số lượng nam:</Title>
-                        <InputNumber min={0} value={maleCount} onChange={setMaleCount} 
+                        <Title level={5} style={{ color: 'white' }}>Số lượng người chơi:</Title>
+                        <InputNumber 
+                            min={0} 
+                            value={maleCount} 
+                            onChange={setMaleCount} 
                             style={{ width: '100%' }}
                             ref={maleCountRef}
                             />
                     </div>
-                    <div>
-                        <Title level={5}>Số lượng nữ:</Title>
-                        <InputNumber min={0} value={femaleCount} onChange={setFemaleCount} 
-                            style={{ width: '100%' }} />
-                    </div>
-                    <div >
-                        <Title level={5}>Số lượng trẻ em:</Title>
-                        <InputNumber min={0} value={childCount} onChange={setChildCount}   style={{ width: '100%' }} />
-                    </div>
                     <div style={{ marginBottom: '5px' }}>
-                        <Title level={5}>Số lượng cầu:</Title>
-                        <InputNumber min={0} value={shuttlecockCount} onChange={setShuttlecockCount} 
+                        <Title level={5} style={{ color: 'white' }}>Số lượng cầu:</Title>
+                        <InputNumber
+                            min={0} 
+                            value={shuttlecockCount} 
+                            onChange={setShuttlecockCount} 
                             style={{ width: '100%' }} 
                             ref={shuttlecockCountRef}
                             />
                     </div>
+                    </Col>
+                    <Col span={12}>
+                    <div>
+                        <Title level={5} style={{ color: 'white' }}>Số lượng nữ:</Title>
+                        <InputNumber 
+                            min={0} 
+                            value={femaleCount} 
+                            onChange={setFemaleCount} 
+                            style={{ width: '100%' }} 
+                        />
+                    </div>
+                    <div >
+                        <Title level={5} style={{ color: 'white' }}>Số lượng học sinh:</Title>
+                        <InputNumber 
+                            min={0} 
+                            value={childCount} 
+                            onChange={setChildCount}   
+                            style={{ width: '100%' }} 
+                        />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: "center", justifyContent: "center", marginTop: 50 }}>  <Button type="primary" onClick={calculateCost}>Tính tiền</Button>
+                           <Button onClick={resetFields} type="primary" style={{ marginLeft: '10px' }}>Reset</Button>
+                    </div>
                 </Col>
             </Row>
-             <Row>
-             <Col>
-                <Button type="primary" onClick={calculateCost}>Tính tiền</Button>
-                <Button onClick={resetFields} type="primary" style={{ marginLeft: '10px' }}>Reset</Button>
-                <Title level={5} >{result}</Title>
-                </Col>
-             </Row>
-            
             </div>}
             <Row   style={{ position: 'absolute', bottom: 2, zIndex: 1 }}>
-                <Col span={15}>
-                   <img src={label} height="100px" width="100%"/>
-                </Col>
-                <Col span={9}>
-                   <img src={image} height="auto" width="100px"/>
-                </Col>
                 <div > <span style={{ fontSize: 12, color: "#cccc"}}><a href="https://www.facebook.com/thodo7199">Create by: Thodo(Anthony)</a></span></div>
              </Row>
             

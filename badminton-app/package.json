@@ -9,9 +9,10 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "electron": "electron ."
-    
   },
   "dependencies": {
+    "@tsparticles/react": "^3.0.0",
+    "@tsparticles/slim": "^3.5.0",
     "antd": "^5.20.6",
     "electron": "^32.1.2",
     "react": "^18.3.1",
